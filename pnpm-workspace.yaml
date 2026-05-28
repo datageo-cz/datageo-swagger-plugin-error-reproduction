@@ -1,0 +1,9 @@
+packages:
+  - apps/*
+  - packages/*
+
+linkWorkspacePackages: true
+injectWorkspacePackages: true
+allowBuilds:
+  '@nestjs/core': true
+  '@scarf/scarf': false

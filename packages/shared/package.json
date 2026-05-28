@@ -1,0 +1,23 @@
+{
+	"name": "@repro/shared",
+	"version": "0.0.0",
+	"private": true,
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"default": "./dist/index.js"
+		},
+		"./messages": {
+			"types": "./dist/messages/index.d.ts",
+			"default": "./dist/messages/index.js"
+		}
+	},
+	"scripts": {
+		"build": "tsc"
+	},
+	"devDependencies": {
+		"typescript": "^5.9.3"
+	}
+}
