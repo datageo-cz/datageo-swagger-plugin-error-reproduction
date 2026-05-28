@@ -152,7 +152,3 @@ the producer's internal source layout, which is precisely the coupling the
   public subpath). Works for some shapes but is brittle: it depends on each
   re-export chain being complete, and silently breaks when a future
   submodule is added without an `export *` in the parent index.
-- **Hand-write `@ApiProperty()` decorators** for every cross-package type.
-  Works but defeats the point of having the plugin.
-
-None of these are great. The right fix is in the plugin.
