@@ -10,7 +10,7 @@ ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME/bin:$PATH"
 ENV TURBO_TELEMETRY_DISABLED=1
 
-RUN corepack enable && corepack prepare pnpm@11.1.0 --activate
+RUN corepack enable && corepack prepare pnpm@11.23.0 --activate
 RUN pnpm add -g turbo
 
 WORKDIR /build
