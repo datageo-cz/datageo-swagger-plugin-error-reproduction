@@ -9,12 +9,15 @@ source imports the package via its public subpath*.
 
 | Tool             | Version  |
 |------------------|----------|
-| pnpm             | 11.1.0   |
-| turbo            | 2.9.x    |
+| pnpm             | 11.23.0  |
+| turbo            | 2.10.x   |
 | TypeScript       | 5.9.x    |
-| NestJS           | 11.1.x   |
-| `@nestjs/swagger`| 11.2.6   |
+| NestJS           | 11.2.1   |
+| `@nestjs/swagger`| 11.4.7   |
 | Node             | 22       |
+
+Last verified: 2026-08-24. See [Status on current versions](#status-on-current-versions)
+for results on `@nestjs/swagger` v12 (git `master`) as well.
 
 ## Layout
 
@@ -128,6 +131,81 @@ Require stack:
     at ModelPropertiesAccessor.applyMetadataFactory ...
     at SchemaObjectFactory.extractPropertiesFromType ...
 ```
+
+## Status on current versions
+
+### `@nestjs/swagger` 11.4.7 + NestJS 11.2.1 — still reproduces
+
+Unchanged. `apps/api/dist/items/item.dto.js` still contains:
+
+```js
+status: { required: true, enum: require("../../../../packages/shared/dist/messages/item").ItemStatus }
+```
+
+and `pnpm deploy --filter @repro/api --prod` + `node dist/main` still fails:
+
+```
+Error: Cannot find module '../../../../packages/shared/dist/messages/item'
+Require stack:
+- /app/dist/items/item.dto.js
+...
+    at ItemDto._OPENAPI_METADATA_FACTORY (/app/dist/items/item.dto.js:9:94)
+    at ModelPropertiesAccessor.applyMetadataFactory (.../@nestjs/swagger/dist/services/model-properties-accessor.js:27:93)
+```
+
+### `@nestjs/swagger` 12.0.0-alpha (git `master`) — still reproduces, plus a new blocker
+
+Tested against `nestjs/swagger` `master` at commit `de89f82`, built from source and
+installed as a tarball. v12 is **ESM-only** (`"type": "module"`), so a CommonJS
+consumer no longer compiles at all:
+
+```
+src/main.ts:2:48 - error TS1479: The current file is a CommonJS module whose imports
+will produce 'require' calls; however, the referenced file is an ECMAScript module
+and cannot be imported with 'require'.
+```
+
+Converting the app to ESM (`"type": "module"`, `module`/`moduleResolution: nodenext`,
+`.js` extensions on relative imports) gets it compiling. The plugin then emits:
+
+```js
+static _OPENAPI_METADATA_FACTORY() {
+    return {
+        id:     { required: true, type: () => String },
+        status: { required: true, enum: (await import("../../../../packages/shared/dist/messages/item.js")).ItemStatus }
+    };
+}
+```
+
+Two problems:
+
+1. **The original issue is unchanged.** The specifier is still the same
+   four-levels-up filesystem path into the sibling package's internal file
+   layout, now as a dynamic `import()` instead of a `require()`. It breaks in a
+   deployed bundle for exactly the same reason.
+
+2. **The emitted code is not valid JavaScript.** `await` is emitted inside
+   `_OPENAPI_METADATA_FACTORY()`, which is not an `async` method, so the module
+   fails to parse:
+
+   ```
+   $ node --check dist/items/item.dto.js
+   return { ..., enum: (await import("../../../../packages/shared/dist/messages/item.js")).ItemStatus } };
+                         ^^^^^
+   SyntaxError: Unexpected reserved word
+   ```
+
+   This is not specific to cross-package imports — a plain same-directory enum
+   produces the same broken output:
+
+   ```js
+   local: { required: true, enum: (await import("./local.enum.js")).LocalStatus }
+   ```
+
+   So under v12 + ESM the app does not start at all, regardless of deployment
+   layout. This looks like a separate bug from the one this repo is about, and
+   it currently makes the v12 plugin unusable for any DTO that references an
+   enum.
 
 ## Expected behavior
 
